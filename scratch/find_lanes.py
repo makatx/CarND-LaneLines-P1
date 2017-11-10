@@ -210,68 +210,42 @@ def draw_farthest(img, lines, color=[0, 0, 255], thickness=2):
     cv2.line(img, tuple(left_p[lx1y1_index]), tuple(left_p[lx2y2_index]), color, thickness)
     cv2.line(img, tuple(right_p[rx1y1_index]), tuple(right_p[rx2y2_index]), color, thickness)
     
-coef_count = 5
-left_coefs = np.array([])
-right_coefs = np.array([])	
+left_coefs = []
+right_coefs = []	
 	
 def draw_polyline(img, lines, color=[0, 0, 255], thickness=5):
     left_points, right_points = seperate_lines(lines, img.shape)
 
-#    print("left points shape:  ", left_points.shape)
-#    print("right points shape: ", right_points.shape)
-    
-
     global left_coefs
     global right_coefs
-
-    if left_points.size!=0: 
-        if left_coefs.size == 0:
-            left_coefs = np.polyfit(left_points[:,:1].ravel(), left_points[:,1:].ravel(), 1).reshape(1,2)
-        elif left_coefs.shape[0] < coef_count:
-            left_coefs = np.append(left_coefs, \
-                                   np.polyfit(left_points[:,:1].ravel(), left_points[:,1:].ravel(), 1).reshape(1,2),\
-                                  axis=0)
-        else:
-            left_coefs = np.delete(left_coefs, 0, axis=0)
-            left_coefs = np.append(left_coefs, \
-                                   np.polyfit(left_points[:,:1].ravel(), left_points[:,1:].ravel(), 1).reshape(1,2),\
-                                  axis=0)
-    if right_points.size!=0:
-        if right_coefs.size == 0:
-            right_coefs = np.polyfit(right_points[:,:1].ravel(), right_points[:,1:].ravel(), 1).reshape(1,2)
-        elif right_coefs.shape[0] < coef_count:
-            right_coefs = np.append(right_coefs, \
-                                   np.polyfit(right_points[:,:1].ravel(), right_points[:,1:].ravel(), 1).reshape(1,2),\
-                                  axis=0)
-        else:
-            right_coefs = np.delete(right_coefs, 0, axis=0)
-            right_coefs = np.append(right_coefs, \
-                                   np.polyfit(right_points[:,:1].ravel(), right_points[:,1:].ravel(), 1).reshape(1,2),\
-                                  axis=0)
-        
-        
-        
-    #evaluate average 
+	
+    if left_points.shape[0]>=10:
+        left_coefs = np.polyfit(left_points[:,:1].ravel(), left_points[:,1:].ravel(), 1)
     
-    lca0, lca1 = np.average(left_coefs[:,0]), np.average(left_coefs[:,1])
-    rca0, rca1 = np.average(right_coefs[:,0]), np.average(right_coefs[:1])
+    if right_points.shape[0]>=10:
+        right_coefs = np.polyfit(right_points[:,:1].ravel(), right_points[:,1:].ravel(), 1)
+
+    # print("left points shape:  ", left_points.shape)
+    # print("left coefs: ", left_coefs)
+    # print("right points shape: ", right_points.shape)
+    # print("right coefs: ", right_coefs)
+
     
     #get start and end points using y=mx+b
-    
-    
     
     left_start_y = img.shape[0]
     right_start_y = img.shape[0]
     
-    left_start_x = int((left_start_y - lca1)/lca0)
-    right_start_x = int((right_start_y - rca1)/rca0)
+    left_start_x = int((left_start_y - left_coefs[1])/left_coefs[0])
+    right_start_x = int((right_start_y - right_coefs[1])/right_coefs[0])
 
 
     left_end_y = int(img.shape[0]/2 + 50)
     right_end_y = int(img.shape[0]/2 + 50)
     
-    left_end_x = int((left_end_y - lca1)/lca0)
-    right_end_x = int((right_end_y - rca1)/rca0)    
+    left_end_x = int((left_end_y - left_coefs[1])/left_coefs[0])
+    right_end_x = int((right_end_y - right_coefs[1])/right_coefs[0])
+    
     cv2.line(img, (left_start_x, left_start_y), (left_end_x, left_end_y), color, thickness)
     cv2.line(img, (right_start_x, right_start_y), (right_end_x, right_end_y), color, thickness)
 	
@@ -314,7 +288,7 @@ def process_img(img_file):
 	blur_gray = gaussian_blur(gray,5)
 
 #Detect edges using Canny
-	edges = canny(blur_gray, 50,110)
+	edges = canny(blur_gray, 25,75)
 
 #Create and apply region mask
 	imshape = edges.shape
@@ -322,7 +296,7 @@ def process_img(img_file):
 	masked = region_of_interest(edges,verts)
 
 #Find lines using Hough transform
-	img_lines = hough_lines(masked, 1, np.pi/180, 15, 40, 15)
+	img_lines = hough_lines(masked, 1, np.pi/180, 5, 10, 40)
 
 #overlaying on original
 	combined = weighted_img(img_lines, image)
